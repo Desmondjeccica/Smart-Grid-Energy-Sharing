@@ -126,3 +126,71 @@
     (err u1)
   )
 )
+
+(define-public (toggle-producer-status)
+  (let ((producer (unwrap! (map-get? energy-producers tx-sender) (err u3))))
+    (ok (map-set energy-producers tx-sender 
+      (merge producer { active: (not (get active producer)) })))
+  )
+)
+
+
+(define-map energy-transactions uint 
+  {
+    producer: principal,
+    consumer: principal,
+    amount: uint,
+    price: uint,
+    timestamp: uint
+  }
+)
+
+(define-data-var transaction-counter uint u0)
+
+(define-public (record-transaction (producer principal) (amount uint) (price uint))
+  (begin
+    (var-set transaction-counter (+ (var-get transaction-counter) u1))
+    (ok (map-set energy-transactions (var-get transaction-counter)
+      {
+        producer: producer,
+        consumer: tx-sender,
+        amount: amount,
+        price: price,
+        timestamp: stacks-block-height
+      }
+    ))
+  )
+)
+
+(define-read-only (get-transaction (tx-id uint))
+  (map-get? energy-transactions tx-id)
+)
+
+(define-read-only (get-user-transactions (user principal))
+  (filter filter-user-transactions (map unwrap-transaction (get-transaction-ids)))
+)
+
+(define-private (get-transaction-ids)
+  (list u1 u2 u3 u4 u5)
+)
+
+(define-private (unwrap-transaction (id uint))
+  (default-to 
+    {
+      producer: contract-owner,
+      consumer: contract-owner,
+      amount: u0,
+      price: u0,
+      timestamp: u0
+    }
+    (map-get? energy-transactions id)
+  )
+)
+
+(define-private (filter-user-transactions (tx {producer: principal, consumer: principal, amount: uint, price: uint, timestamp: uint}))
+  (or
+    (is-eq (get producer tx) tx-sender)
+    (is-eq (get consumer tx) tx-sender)
+  )
+)
+
